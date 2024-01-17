@@ -1,0 +1,264 @@
+---
+title: "SMiS07.Rmd"
+author: "Robert A. Stevens"
+date: "March 6, 2017"
+output: html_document
+---
+
+```{r, comment=NA}
+
+```
+
+```{r, comment=NA}
+library(ggplot2) # for "ggplot" function
+library(gridExtra) # for "grid.arrange" function
+#library(mgcv) # for "gam" function (conflict with "gam" package?)
+#library(ISLR) # for "Auto" data set
+library(rpart) # for "car.test.frame" data set
+```
+
+*Statistical Models in S*
+
+Edited by John M. Chambers and Trevor J. Hastie (1992)
+
+# Chapter 7: Generalized Additive Models
+
+by Trevor J. Hastie
+
+## 7.1 Statistical Methods
+
+Additive regression model:
+
+    Eta(X) = a + f[1](x[1]) + f[2](x[2]) + ... + f[p](x[p])
+    
+Examples:
+
+    Simple Additive: y = f(x) + e
+    
+    Semiparametric: y = t(X)*B + f(z) + e
+    
+    Additive: y = t(B)*X + f[1](z[1]) + f[2](z[2]) + ... + f[q](z[q]) + e
+
+    Nonparametric logistic regression: logit(P(X)) = log(P(X)/(1 - P(X))) = Eta(X)
+
+*These semiparametric models have received attention in the analysis of agricultural field trials; the linear terms usually correspond to design effects and the nonlinear function models spatial ordering of the plots.*
+
+### 7.1.1 Data Analysis and Additive Models
+
+```
+ozone ~ wind + s(temp)
+
+ozone ~ wind + poly(temp, 3)
+```
+
+### 7.1.2 Fitting Generalized Additive Models
+
+- Scatterplot smoothers
+
+- Backfitting algorithm
+
+- Local-scoring algorithm
+
+## 7.2 S Functions and Objects
+
+### 7.2.1 Fitting the Models
+
+```{r, comment=NA, fig.width = 10, message=FALSE, eval=FALSE}
+p1 <- ggplot(data = car.test.frame, aes(x = Weight, y = Mileage)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red") +
+  geom_smooth(method = "loess", formula = y ~ x, span = 0.75, se = FALSE) +
+  labs(title = "gam(Mileage ~ lo(Weight))") +
+  scale_y_continuous(limits = c(17.5, 37.5))
+
+library(mgcv) # for "gam" in ggplot
+p2 <- ggplot(data = car.test.frame, aes(x = HP, y = Mileage)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red") +
+  geom_smooth(method = "gam", formula = y ~ s(x), se = FALSE) +
+  labs(title = "gam(Mileage ~ s(HP))") +
+  scale_y_continuous(limits = c(17.5, 37.5))
+
+grid.arrange(p1, p2, ncol = 2, widths = c(5, 5))
+```
+
+Figure 7.1: Scatter smoothers summarize the relationship between the variable Mileage as a response and Weight and HP as predictors in the automobile data. The first panel uses the loess() smoother, while the second panel uses a smoothing spline. They can also be viewed as nonparametric estimates of the regression function for a simple additive model. The straight line in each case is the least-squares linear fit.
+
+
+```{r, comment=NA}
+library(gam)
+
+Mileage.lm <- lm(Mileage ~ Weight, data = car.test.frame)
+summary(Mileage.lm)
+(rss0 <- sum(Mileage.lm$residuals^2))
+(df0 <- summary(Mileage.lm)$df[1])
+
+Mileage.lo <- loess(Mileage ~ Weight, span = 0.75, data = car.test.frame)
+summary(Mileage.lo)
+(rss1 <- sum(Mileage.lo$residuals^2))
+(df1 <- summary(Mileage.lo)$enp)
+
+approxF <- function(RSS0, DF0, RSS1, DF1, N) {
+  Fstat <- ((RSS0 - RSS1)/(DF1 - DF0))/(RSS1/(N - DF1)) 
+  return(Fstat)
+}
+
+(n <- dim(car.test.frame)[1])
+
+(Fstat <- approxF(rss0, df0, rss1, df1, n))
+1 - pf(Fstat, df1 - df0, n - df1)
+
+summary(gam(Mileage ~ lo(Weight), span = 1/2, data = car.test.frame))
+
+summary(gam(Mileage ~ lo(Weight), span = 1/3, data = car.test.frame))
+
+summary(gam(Mileage ~ s(HP), data = car.test.frame))
+```
+
+```{r, comment=NA}
+auto.add <- gam(Mileage ~ s(Weight) + s(HP), data = car.test.frame)
+
+plot(auto.add)
+
+summary(auto.add)
+
+summary(gam(Mileage ~ s(Weight), data = car.test.frame))
+```
+
+Figure 7.2: An additive model relates Mileage to Weight and HP. Each plot is the contribution of a term to the additive predictor, and has "y" label the expression used to specify it in the model formula. Each curve has been centered to have average 0. The effect of HP in this joint fit is greatly reduced from that in Figure 7.1.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.3: A scatterplot smooth for binary data (jittered to break ties). The smooth estimates the proportion of ATT subscribers (1s) as a function of usage.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.4: The left figure smooths pick against the transformed log(usage + 2). The right figure plots the same fit against the untransformed usage.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.5: A graphical description of the generalized additive model fit of the binary response Kyphosis to three predictors. The figures are plotted on the logit scale, and each plot represents the contribution of that variable to the fitted logit. Included in each of the plots are partial residuals for that variable.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.6: A scatterplot matrix of the three predictors in the Kyphosis data. The presence (solid dots) and absence (hallow circles) of Kyphosis is indicated in the plots.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.7: The additive logistics fit of Kyphosis to Age and Start. The dashed curves are pointwise 2 x standard-error bands.
+
+### 7.2.2 Plotting the Fitted Models
+
+```{r, comment=NA}
+
+```
+
+Figure 7.8: Representations of some additive fits to the market share data. The top row was created by the expression plot(mkt.fit2, se = T, scale = 3). The x-axis in each plot is labeled according to the "inner" predictor in the term, such as usage in the term s(log(usage + 2)); the y-axis is labeled by the term label itself. The bottom row is a plot of the GLM model glm(pick == "ATT" ~ log(usage + 2) + income, binomial), using a similar call to the function plot.gam().
+
+### 7.2.3 Further Details on gam()
+
+### 7.2.4 Parametric Additive Models: bs() and ns()
+
+```{r, comment=NA}
+
+```
+
+Figure 7.9: A demonstration of B-spline functions using bs(). The y-labels show the term used in a call to lm(); the functions were plotted using plot.gam(). The dotted vertical lines are included to show the placement of the single knot.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.10: A demonstration of a natural cubic B-spline using ns(). The vertical lines indicate the placement of knots. The upper and lower curves are pointwise twice standard-error bands.
+
+### 7.2.5 An Example in Detail
+
+```{r, comment=NA}
+
+```
+
+Figure 7.11: The top row shows NOx plotted against C, the combustion level, and E, the equivalence ratio for the ethanol data. The bottom row shows an additive model fit, where C is modeled and E is modeled by a locally quadratic smooth term, specified by lo(E, degree = 2).
+
+```{r, comment=NA}
+
+```
+
+Figure 7.12: A perspective plot of the bivariate surface smooth term in the model eth3, produced by the plot() method for gam objects.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.13: A coplot() shows the residuals from the additive model fit plotted against c, given three different overlapping intervals of the values of E. The interaction structure is evident.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.14: A plot of the terms in the parametric model glm(NOx ~ C + cut(E, 7)), with pointwise twice standard-error bands and partial residuals. The plot.gam() method represents a categorical transformation of a quantitative predictor as a piecewise constant function.
+
+## 7.3 Specializing and Extending the Computations
+
+### 7.3.1 Stepwise Model Selection
+
+```{r, comment=NA}
+
+```
+
+Figure 7.15: An AIC plot of the model visited during the stepwise search by step.gam() for the (stepwise) optimal mkt.step. The best-fitting model is plotted using a black dot.
+
+### 7.3.2 Missing Data
+
+### 7.3.3 Prediction
+
+```{r, comment=NA}
+
+```
+
+Figure 7.16: The fitted surface corresponding to eth3, evaluated on a 40 x 40 grid of values of C and E using predict(). Compare to Figure 7.12.
+
+```{r, comment=NA}
+
+```
+
+Figure 7.17: A contour plot of the fitted probability surface derived from the fitted additive model kyph.gam2. The black dots indicate cases with Kyphosis present, the circles, absent.
+
+### 7.3.4 Smoothers in gam()
+
+### 7.3.5 More on Plotting
+
+```{r, comment=NA}
+
+```
+
+Figure 7.18: The plot on the left shows the centered, fitted term for C in the model eth7, together with pointwise twice standard-error bands. The plot on the right is the uncentered version.
+
+## 7.4 Numerical and Computational Details
+
+### 7.4.1 Scatterplot Smoothing
+
+### 7.4.2 Fitting Simple Additive Models
+
+```{r, comment=NA}
+
+```
+
+Figure 7.19: The solid curves represent the additive model fit to ozone using there atmospheric variables. The points in the figures represent the partial residuals (fitted function + overall residuals). The broken curves show the functions obtained by smoothing the variables separately against log(ozone).
+
+### 7.4.3 Fitting Generalized Additive Models
+
+### 7.4.4 Standard Errors and Degrees of Freedom
+
+### 7.4.5 Implementation Details
+
+## Bibliographic Notes
