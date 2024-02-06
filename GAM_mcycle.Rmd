@@ -1,0 +1,202 @@
+---
+title: "Motorcycle crash data analysis with GAM"
+author: "Robert A. Stevens"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+TODO
+
+1. add checks
+
+2. add residual analysis
+
+3. follow NIST flowchart?
+
+4. Pick best model - start with linear and add splines until too many
+
+5. communicate - ggplot?
+
+```{r, echo=FALSE, messages=TRUE, warning=TRUE}
+knitr::opts_chunk$set(comment=NA, echo=TRUE, warning=TRUE, message=TRUE)
+```
+
+In this chapter, you will learn how Generalized additive models work and how to use flexible, nonlinear functions to model data without over-fitting. You will learn to use the `gam()` function in the `mgcv` package, and how to build multivariate models that mix nonlinear, linear, and categorical effects to data.
+
+The data set, stored in a data frame named `mcycle`, contains measurement of acceleration of a crash-test dummy head during a motorcycle crash. It contains measurements of acceleration (g) in the `accel` column and time (milliseconds) in the `times` column.
+
+## Import
+
+```{r}
+# import packages
+library(mgcv)
+library(readr)
+```
+
+```{r}
+# import data
+mcycle <- read_csv("mcycle.csv")
+```
+
+```{r}
+str(mcycle)
+```
+
+```{r}
+# Examine the mcycle data frame
+head(mcycle)
+```
+
+## Tidy
+
+N/A
+
+## Transform
+
+N/A
+
+## Visualize
+
+```{r}
+plot(mcycle)
+```
+
+## Model # 1: linear approach
+
+In this first exercise, you will fit a linear model to a data set and visualize the results to see how well it captures relationships in the data.
+
+```{r}
+# Fit a linear model
+lm_mod <- lm(accel ~ times, data = mcycle)
+summary(lm_mod)
+```
+
+```{r}
+# Visualize the model
+termplot(lm_mod, partial.resid = TRUE, se = TRUE)
+```
+
+## Model # 1: non-linear approach
+
+Now you will fit a non-linear model to the same `mcycle` data using the `gam()` function from the `mgcv` package.
+
+```{r}
+# Fit the model
+gam_mod <- gam(accel ~ s(times), data = mcycle)
+summary(gam_mod)
+```
+
+```{r}
+# Plot the results
+plot(gam_mod, residuals = TRUE, pch = 1, shade = TRUE, cex = 0.5)
+```
+
+## 1.4 Parts of non-linear function
+
+GAMs are made up of basis functions that together compose the smooth terms in models.
+
+You can use the `coef()` function to extract the coefficients from the GAM model object.
+
+After extracting the coefficients, answer the question:
+
+How many coefficients are there for the basis functions that compose the smooth curve in this model?
+
+```{r}
+# 1/2
+
+# Extract the model coefficients
+coef(gam_mod)
+```
+
+```
+# 2/2
+```
+
+- 1
+
+- 2
+
+- 9 - Yes
+
+- 10
+
+## 1.6 Setting complexity of the motorcycle model
+
+The number of basis functions in a smooth has a great impact on the shapes a model can take. Here, you'll practice modifying the number of basis functions in a model and examining the results.
+
+```{r}
+# Fit a GAM with 3 basis functions
+gam_mod_k3 <- gam(accel ~ s(times, k = 3), data = mcycle)
+summary(gam_mod_k3)
+```
+
+```{r}
+# Visualize the GAMs
+#par(mfrow = c(1, 2))
+plot(gam_mod_k3, residuals = TRUE, pch = 1, shade = TRUE, cex = 0.5)
+```
+
+```{r}
+# Fit with 20 basis functions
+gam_mod_k20 <- gam(accel ~ s(times, k = 20), data = mcycle, shade = TRUE, cex = 0.5)
+summary(gam_mod_k20)
+```
+
+```{r}
+plot(gam_mod_k20, residuals = TRUE, pch = 1, shade = TRUE, cex = 0.5)
+```
+
+*See how the GAM with only three basis functions is much simpler, and doesn't model the complexity in the data. 20 basis functions, though, is enough to capture this relationship.*
+
+## 1.7 Using smoothing parameters to avoid overfitting
+
+The smoothing parameter balances between likelihood and wiggliness to optimize model fit. Here, you'll examine smoothing parameters and will fit models with different fixed smoothing parameters.
+
+```{r}
+# Extract the smoothing parameter
+gam_mod <- gam(accel ~ s(times), data = mcycle, method = "REML")
+gam_mod$sp
+```
+
+```{r}
+# Fix the smoothing parameter at 0.1
+gam_mod_s1 <- gam(accel ~ s(times), data = mcycle, sp = 0.1)
+summary(gam_mod_s1)
+```
+
+```{r}
+# Plot both models
+# par(mfrow = c(2, 1))
+plot(gam_mod_s1, residuals = TRUE, pch = 1, shade = TRUE, cex = 0.5)
+```
+
+```{r}
+# Fix the smoothing parameter at 0.0001
+gam_mod_s2 <- gam(accel ~ s(times), data = mcycle, sp = 0.0001)
+summary(gam_mod_s2)
+```
+
+```{r}
+plot(gam_mod_s2, residuals = TRUE, pch = 1, shade = TRUE, cex = 0.5)
+```
+
+*See how the model with `sp` = 0.1 is much smoother, while the one with `sp` = 0.0001 fits most wiggles in the data. Note that these both have the same number of basis functions - the smoothing parameter `sp` calibrates the overall complexity with the bounds allowed by `k`.*
+
+## 1.8 Complexity and smoothing together
+
+The number of basis functions and the smoothing parameters interact to control the wiggliness of a smooth function. Here you will see how changing both together affects model behavior.
+
+```{r}
+# Fit the GAM
+gam_mod_sk <- gam(accel ~ s(times, k = 50), data = mcycle, sp = 0.0001)
+summary(gam_mod_sk)
+```
+
+```{r}
+# Visualize the model
+plot(gam_mod_sk, residuals = TRUE, pch = 1, shade = TRUE, cex = 0.5)
+```
+
+*Look how wiggly that model is. When `k` is high and `s` is too low to smooth the model, it ends up overfitting the data.*
+
+## Communicate

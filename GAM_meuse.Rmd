@@ -1,0 +1,604 @@
+---
+title: "3.0 Spatial GAMs and Interactions"
+author: "Robert A. Stevens"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r, echo=FALSE, messages=TRUE, warning=TRUE}
+knitr::opts_chunk$set(comment=NA, echo=TRUE, warning=TRUE, message=TRUE)
+```
+
+```{r}
+# import packages
+library(gamair)  # `mpg` dataset
+library(mgcv)
+library(sp)  # meuse dataset
+```
+
+```{r}
+# import data
+data(meuse)
+data(mpg)
+```
+
+In this chapter, you will extend the types of models you can fit to those with interactions of multiple variables. You will fit models of geospatial data by using these interactions to model complex surfaces, and visualize those surfaces in 3D. Then you will learn about interactions between smooth and categorical variables, and how to model interactions between very different variables like space and time.
+
+## 3.1 Two-dimensional smooths and spatial data
+
+### Interactions
+
+`y = β1*x1 + β2*x2 + β3*x1*x2`
+
+### Interactions in GAMs
+
+y = s(x1, x2)
+
+- 3D surface
+    + x1
+    + x2
+    + y
+
+### Syntax for interactions
+
+```
+# s(x1, x2) <-- 2 variables
+gam(y ~ s(x1, x2), data = dat, method = "REML")
+```
+
+### Mixing interaction and single terms
+
+```
+gam(y ~ s(x1, x2) + s(x3), data = dat, method = "REML")
+```
+
+```
+gam(y ~ s(x1, x2) + x3 + x4, data = dat, method = "REML")
+```
+
+### Summary Output
+
+```
+Family: gaussian
+Link function: identity
+
+Formula:
+y ~ s(x1, x2)
+
+Parametric coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)  0.34256    0.01646   20.82   <2e-16 ***
+ ---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+           edf Ref.df     F p-value
+s(x1,x2) 10.82   14.9 14.37  <2e-16 *** #<-- Interaction
+ ---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.519   Deviance explained = 54.5%
+GCV = 0.057564  Scale est. = 0.054161  n = 200
+```
+
+### Spatial data
+
+```{r}
+head(meuse, 10)
+```
+
+## 3.2 Modeling soil pollution in the Netherlands
+
+Let's take a closer look at the `meuse` data and use it to fit your first 2-D model.
+
+Unless otherwise mentioned, assume that `mgcv` is loaded in your workspace going forward.
+
+After reviewing the model you will fit, answer the following question: How many basis functions are used in the two-dimensional smooth?
+
+```{r}
+# 1/3
+
+# Inspect the data
+head(meuse)
+```
+
+```{r}
+str(meuse)
+```
+
+```{r}
+# 2/3
+
+# Fit the 2-D model
+mod2d <- gam(cadmium ~ s(x, y), data = meuse, method = "REML")
+
+# Inspect the model
+summary(mod2d)
+```
+
+```{r}
+coef(mod2d)
+```
+
+```
+# 3/3
+```
+
+- 10
+
+- 23
+
+- 29 - yes
+
+- 36
+
+*There are 29 coefficients in `s(x, y)`. Surfaces require more basis coefficients to construct than single variable smooths. That's why the default value for `k` is high for 2-D smooths.*
+
+## 3.3 Adding more variables to predict soil pollution
+
+Now let's add additional predictors to the model with spatial interactions.
+
+```{r}
+# Fit the model
+mod2da <- gam(
+  cadmium ~ s(x, y) + s(elev) + s(dist), 
+  data = meuse, 
+  method = "REML"
+)
+
+# Inspect the model
+summary(mod2da)
+```
+
+*Models of this form `(s(x,y) + s(v1) + ...)` are a great way to model spatial data because they incorporate spatial relationships as well as independent predictors. Now let's learn how to visualize them.*
+
+## 3.4 Plotting and interpreting GAM interactions
+
+### Using `mgcv`'s `plot()` command with interactions
+
+```{r}
+#plot(mod_2d)
+plot(mod2d)
+```
+
+```{r}
+# plot(mod_2d, scheme = 1)
+plot(mod2d, scheme = 1)
+```
+
+```{r}
+# plot(mod_2d, scheme = 2)
+plot(mod2d, scheme = 2)
+```
+
+### Customizing interaction plots with `vis.gam()`
+
+```
+vis.gam(
+  x,
+  view = NULL,
+  cond = list(),
+  n.grid = 30,
+  too.far = 0,
+  col = NA,
+  color = "heat",
+  contour.col = NULL,
+  se = -1,
+  type = "link",
+  plot.type = "persp",
+  zlim = NULL,
+  nCol = 50,
+  ...
+)
+```
+
+```
+# mod: GAM object
+# c("x1", "x2"): variables
+# "persp": kind of plot
+
+vis.gam(
+  x = mod,
+  view = c("x1", "x2"),
+  plot.type = "persp"
+)
+```
+
+### Customizing interaction plots with `vis.gam()` (2)
+
+```
+# mod: GAM object
+# c("x1", "x2"): variables
+# "contour": kind of plot
+vis.gam(
+  x = mod,
+  view = c("x1", "x2"),
+  plot.type = "contour"
+)
+```
+
+### Customizing interaction plots with `vis.gam()` (3)
+
+```
+vis.gam(mod, view = c("x1", "x2"), plot.type = "contour", too.far = 0.1)
+```
+
+```
+vis.gam(mod, view = c("x1", "x2"), plot.type = "contour", too.far = 0.05)
+```
+
+### Options for perspective plots
+
+```
+vis.gam(x = mod, view = c("x1", "x2"), plot.type = "persp", se = 2)
+```
+
+```
+vis.gam(g, view = c("x1", "x2"), plot.type = "persp", theta = 220)
+```
+
+```
+vis.gam(g, view = c("x1", "x2"), plot.type = "persp", phi = 55)
+```
+
+```
+vis.gam(g, view = c("x1", "x2"), plot.type = "persp", r = 0.1)
+```
+
+### Options for contour plots
+
+```
+vis.gam(g, view = c("x1", "x2"), plot.type = "contour", color = "gray")
+```
+
+```
+vis.gam(g, view = c("x1", "x2"), plot.type = "contour", contour.col = "blue")
+```
+
+```
+vis.gam(g, view = c("x1", "x2"), plot.type = "contour", nlevels = 20)
+```
+
+## 3.5 Plotting the model surface
+
+Let's explore the different visualization schemes available in `mgcv`'s `plot()` function.
+
+The model you built in the last exercise (`mod2da`) is available in your workspace.
+
+```{r}
+# 1/3
+
+# Contour plot
+plot(mod2da, pages = 1)
+```
+
+```{r}
+# 2/3
+
+# 3D surface plot
+plot(mod2da, scheme = 1, pages = 1)
+```
+
+```{r}
+# 3/3
+
+# Colored heat map
+plot(mod2da, scheme = 2, pages = 1)
+```
+
+## 3.6 Customizing 3D plots
+
+Uncertainty is easy to see in plots of univariate smooths, but more challenging to represent in 2D relationships. Here we'll visualize uncertainty in a geospatial interaction.
+
+The model (`mod2d`) from exercise 2 is available in your workspace.
+
+```{r}
+# 1/2
+
+# Make the perspective plot with error surfaces
+vis.gam(mod2d, view = c("x", "y"), plot.type = "persp", se = 2)
+```
+
+```{r}
+# 2/2
+
+# Rotate the same plot
+# Make the perspective plot with error surfaces
+vis.gam(mod2d, view = c("x", "y"), plot.type = "persp", se = 2, theta = 135)
+```
+
+## 3.7 Extrapolation in surface plots
+
+When making predictions from the models, it is important to understand how far from the range of your data you are extrapolating. With multivariate smooths, the shape of the areas supported by data may be complex. Here you'll make plots that compare extrapolations to support in the data.
+
+The model (`mod2d`) from exercise 2 is available in your workspace.
+
+```{r}
+# 1/3
+
+# Make plot with 5% extrapolation
+vis.gam(mod2d, view = c("x", "y"), plot.type = "contour", too.far = 0.05)
+
+# Overlay data
+points(meuse)
+```
+
+```{r}
+# 2/3
+
+# Make plot with 10% extrapolation
+vis.gam(mod2d, view = c("x", "y"), plot.type = "contour", too.far = 0.10)
+
+# Overlay data
+points(meuse)
+```
+
+```{r}
+# 3/3
+
+# Make plot with 25% extrapolation
+vis.gam(mod2d, view = c("x", "y"), plot.type = "contour", too.far = 0.25)
+
+# Overlay data
+points(meuse)
+```
+
+*You can see from the progression of plots how extrapolation changes the impression of the extent of model support. When presenting such model results, it's always important to be aware of the ranges of data supporting the model.*
+
+## 3.8 Visualizing categorical-continuous interactions
+
+### Categorical-continuous interactions
+
+```{r}
+model4b <- gam(
+  hw.mpg ~ s(weight, by = fuel) + fuel, 
+  data = mpg, 
+  method = "REML"
+)
+```
+
+```{r}
+plot(model4b, all.terms = TRUE, pages = 1, shade = TRUE, rug = FALSE)
+```
+
+### Factor-smooths
+
+```{r}
+model4c <- gam(
+  hw.mpg ~ s(weight, fuel, bs = "fs"),
+  data = mpg, 
+  method = "REML"
+)
+ 
+summary(model4c)
+```
+
+### Plotting factor-smooths
+
+```{r}
+plot(model4c)
+```
+
+```
+vis.gam(
+  model4c, 
+  theta = 125, 
+  plot.type = "persp"
+)
+# Gives:
+#   Error in persp.default(m1, m2, z, col = col, zlim = c(min.z, max.z), xlab = view[1], : 
+#   increasing 'x' and 'y' values expected
+```
+
+## 3.9 Soil pollution in different land uses
+
+The `meuse` data set has a factor variable, `landuse`, which specifies the type of land use or cover at the location where soil was sampled.
+
+```{r}
+# 1/2
+
+# Fit a model with separate smooths for each land-use level
+mod_sep <- gam(copper ~ s(dist, by = landuse) + landuse, data = meuse, method = "REML")
+
+# Examine the summary
+summary(mod_sep)
+```
+
+```{r}
+# 2/2
+
+# Fit a model with a factor-smooth interaction
+mod_fs <- gam(copper ~ s(dist, landuse, bs = "fs"), data = meuse, method = "REML")
+
+# Examine the summary
+summary(mod_fs)
+```
+
+## 3.10 Plotting pollution in different land uses
+
+You can observe the differences between different continuous-categorical interaction types by visualizing them. Here, you'll look at the different ways the by-type and factor-smooth-type interactions are plotted, and see how the approaches fit the models differently.
+
+Both the models (`mod_sep` and `mod_fs`) from the previous exercise are available in your workspace.
+
+```{r}
+# 1/2
+
+# Plot both the models with plot()
+plot(mod_sep, pages = 1)
+```
+
+```{r}
+plot(mod_fs, pages = 1)
+```
+
+```{r}
+# 2/2
+
+# Plot both the models with vis.gam()
+vis.gam(mod_sep, view = c("dist", "landuse"), plot.type = "persp")
+```
+
+```{r}
+vis.gam(mod_fs, view = c("dist", "landuse"), plot.type = "persp")
+```
+
+*Note the `fs` model has fewer wild swings - it is more stable for models where some categories have few data points, though we don't get statistics on the individual smooths in this case.*
+
+## 3.11 Interactions with different scales: Tensors
+
+### Interactions with one smoothing parameter
+
+`y = s(x1, x2)`
+
+with smoothing parameter `λ`
+
+### Variables with different scales or wiggliness
+
+- Numeric terms from `meuse` on different scales:
+
+```
+        x      y elev om 
+ 1 181072 333611 7.91 13.6 
+ 2 181025 333558 6.98 14 
+ 3 181165 333537 7.80 13 
+ 4 181298 333484 7.66  8
+ 5 181307 333330 7.48  8.7 
+ 6 181390 333260 7.79  7.8 
+ 7 181165 333370 8.22  9.2 
+ 8 181027 333363 8.49  9.5 
+ 9 181060 333231 8.67 10.6
+10 181232 333168 9.05   6.3
+```
+
+### Tensor smooths
+
+`y = te(x1, x2)`
+
+with smoothing parameters `λ1` and `λ2`
+
+```
+gam(y ~ te(x1, x2), data = data, method = "REML")
+```
+
+```
+gam(y ~ te(x1, x2, k = c(10, 20)), data = data, method = "REML")
+```
+
+- surface plot: "Actual Relationship"
+
+- surface plot: "Fit using `s()`"
+
+- surface plot: "Fit using `te()`"
+
+### Tensor interactions
+
+`y = s(x1) + s(x2) + ti(x1, x2) `
+
+with smoothing parameters `λ1`, `λ2`, `λ3`, `λ4`
+
+```
+gam(y ~ s(x1) + s(x2) + ti(x1, x2), data = data, method = "REML")
+```
+
+### Summary Output
+
+```
+...
+
+Forumla:
+
+y ~ s(x1) + s(x2) + ti(x1, x2)
+
+...
+
+Approximate significance of smooth terms
+            edf  ...
+te(x1)      4.92 ...
+te(x2)      3.42 ...
+ti(x1, x2) 10.15 ...
+
+...
+```
+
+### Example: tensor interactions
+
+```
+gam(y ~ s(x1) + s(x2) + ti(x1, x2), data = data, method = "REML")
+```
+
+- GAM Curve:
+    + x = x1
+    + y = s(x1, 3.08)
+
+- GAM Curve:
+    + x = x2
+    + y = s(x2, 3.16)
+
+- Surface plot:
+    + x1
+    + x2
+    + y = ti(X1, x2, 11.12)
+
+## 3.12 Pollution models with multi-scale interactions
+
+The `meuse` dataset contains some predictor variables that are on the same scale (`x`, `y`), and some that are on different scales (`elev`, `dist`, `om`). In a previous exercise, you fit a model where you predicted cadmium pollution as a function of location and elevation:
+
+```{r}
+mod <- gam(
+  cadmium ~ s(x, y) + s(elev), 
+  data = meuse, 
+  method = "REML"
+)
+```
+
+In this exercise, you'll build a model that allows multiple variables to interact despite these different scales using a tensor smooth, `te()`.
+
+```{r}
+# Fit the model
+tensor_mod <- gam(
+  cadmium ~ te(x, y, elev), 
+  data = meuse, 
+  method = "REML"
+)
+
+# Summarize and plot
+summary(tensor_mod)
+```
+
+```{r}
+plot(tensor_mod)
+```
+
+*To visulize a 3-variable interaction, `mgcv` plots 2D “slices” of the 2-way interaction at different levels of the third variable.*
+
+## 3.13 Teasing apart multi-scale interactions
+
+In the previous exercise, you fit the following model:
+
+```{r}
+tensor_mod <- gam(
+  cadmium ~ te(x, y, elev), 
+  data = meuse, 
+  method = "REML"
+)
+```
+
+In this exercise, you will fit a model with smooths and tensor interactions to separate out the independent and interacting effects of variables.
+
+```{r}
+# Fit the model
+tensor_mod2 <- gam(
+  cadmium ~ s(x, y) + s(elev) + ti(x, y, elev), 
+  data = meuse, 
+  method = "REML"
+)
+
+# Summarize and plot
+summary(tensor_mod2)
+```
+
+```{r}
+plot(tensor_mod2, pages = 1)
+```
+
+*You can see how horizontal space elevation have independent effects, but we still capture the interaction of all the terms.*

@@ -1,0 +1,566 @@
+---
+title: "MPG data analysis with GAM"
+author: "Robert A. Stevens"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+TODO
+
+0. add EDA
+
+1. add checks
+
+2. add residual analysis
+
+3. follow NIST flowchart?
+
+4. Pick best model - start with linear and add splines until too many
+
+5. communicate - ggplot?
+
+```{r, echo=FALSE, messages=TRUE, warning=TRUE}
+knitr::opts_chunk$set(comment=NA, echo=TRUE, warning=TRUE, message=TRUE)
+```
+
+## 1.10 Multivariate GAMs of auto performance
+
+In this chapter, you will learn how Generalized additive models work and how to use flexible, nonlinear functions to model data without over-fitting. You will learn to use the `gam()` function in the `mgcv` package, and how to build multivariate models that mix nonlinear, linear, and categorical effects to data.
+
+GAMs can accept multiple variables of different types. In the following exercises, you'll work with the `mpg` dataset available in the `gamair` package to practice fitting models of different forms.
+
+https://www.rdocumentation.org/packages/gamair/topics/gamair-package
+
+## Import
+
+```{r}
+# import packages
+# library(gamair)  # `mpg` dataset
+# library(MASS)  # `mcycle` dataset
+library(mgcv)
+library(readr)
+```
+
+```{r}
+# import data
+#mpg <- read_csv("mpg.csv")
+mpg <- read.csv("mpg.csv", stringsAsFactors = TRUE)
+```
+
+```{r}
+str(mpg)
+```
+
+```{r}
+# Examine the mpg data frame
+head(mpg)
+```
+
+## Tidy
+
+N/A
+
+## Transform
+
+```{r}
+#mpg["fuel"] <- as.factor(mpg["fuel"])
+```
+
+## Visualize
+
+
+## Model 
+
+### Multiple smooths (1)
+
+```{r}
+model <- gam(hw.mpg ~ s(weight), data = mpg, method = "REML")
+summary(model)
+```
+
+```{r}
+plot(
+  model, 
+  all.terms = TRUE, 
+  pages = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+```
+
+### Multiple smooths (2)
+
+```{r}
+model2 <- gam(hw.mpg ~ s(weight) + s(length), data = mpg, method = "REML")
+summary(model2)
+```
+
+```{r}
+plot(
+  model2, 
+  all.terms = TRUE, 
+  pages = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+```
+
+### Linear terms
+
+```{r}
+model2 <- gam(hw.mpg ~ s(weight) + length, data = mpg, method = "REML")
+summary(model2)
+```
+
+```{r}
+plot(
+  model2, 
+  all.terms = TRUE, 
+  pages = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+```
+
+### Linear terms (2)
+
+```{r}
+model2b <- gam(hw.mpg ~ s(weight) + s(length, sp = 1000), data = mpg, method = "REML")
+summary(model2b)
+```
+
+```{r}
+plot(
+  model2b, 
+  all.terms = TRUE, 
+  pages = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+```
+
+### Categorical terms (1)
+
+```{r}
+model3 <- gam(hw.mpg ~ s(weight) + fuel, data = mpg, method = "REML")
+summary(model3)
+```
+
+```{r}
+plot(
+  model3, 
+  all.terms = TRUE, 
+  pages = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+```
+
+### Categorical terms (2)
+
+```{r}
+model4 <- gam(hw.mpg ~ s(weight, by = fuel), data = mpg, method = "REML")
+summary(model4)
+```
+
+```{r}
+plot(model4, all.terms = TRUE, pages = 1, shade = TRUE, rug = FALSE)
+```
+
+### Categorical terms (3)
+
+```{r}
+model4b <- gam(hw.mpg ~ s(weight, by = fuel) + fuel, data = mpg, method = "REML")
+summary(model4b)
+```
+
+```{r}
+plot(model4b, all.terms = TRUE, pages = 1, shade = TRUE, rug = FALSE)
+```
+
+## 1.10 Multivariate GAMs of auto performance
+
+```{r}
+# Fit the model
+mod_city <- gam(city.mpg ~ s(weight) + s(length) + s(price), data = mpg, method = "REML")
+summary(mod_city)
+```
+
+```{r}
+# Plot the model
+plot(mod_city, pages = 1)
+```
+
+*Look at the plot for the `price` term - it's completely linear. Automatic smoothing found that a linear relationship was a better fit than anything wiggly*
+
+## 1.11 Adding categorical to the auto performance model
+
+Now you'll include categorical variables in your model. Categories are inherently linear, so you'll model them as linear terms.
+
+```{r}
+# Fit the model
+mod_city2 <- gam(
+  city.mpg ~ s(weight) + s(length) + s(price) + fuel + drive + style, 
+  data = mpg, 
+  method = "REML"
+)
+summary(mod_city2)
+```
+
+```{r}
+# Plot the model
+plot(mod_city2, all.terms = TRUE, pages = 1)
+```
+
+## 1.12 Category-level smooths for different auto types
+
+Now you extend your models to include different smooths for different levels of categorical terms.
+
+```{r}
+# Fit the model
+mod_city3 <- gam(
+  city.mpg ~ s(weight, by = drive) + s(length, by = drive) + s(price, by = drive) + drive, 
+  data = mpg, 
+  method = "REML"
+)
+summary(mod_city3)
+```
+
+```{r}
+# Plot the model
+plot(mod_city3, pages = 1)
+```
+
+In this chapter, you will take a closer look at the models you fit in chapter 1 and learn how to interpret and explain them. You will learn how to make plots that show how different variables affect model outcomes. Then you will diagnose problems in models arising from under-fitting the data or hidden relationships between variables, and how to iteratively fix those problems and get better results.
+
+## 2.1 Interpreting GAM outputs
+
+### GAM summaries
+
+```{r}
+mod_hwy <- gam(
+  hw.mpg ~ s(weight) + s(rpm) + s(price) + s(comp.ratio) + s(width) + fuel,
+  data = mpg, 
+  method = "REML"
+)
+
+summary(mod_hwy)
+```
+
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5)
+```
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 4, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+```
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 1, 
+  residuals = TRUE, 
+  pch = 1, 
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+abline(h = 0, col = "red")
+```
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 3, 
+  residuals = TRUE, 
+  pch = 1,
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+abline(h = 0, col = "red")
+```
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 3, 
+  residuals = TRUE, 
+  pch = 1,
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+abline(h = 0, col = "red")
+```
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 4, 
+  residuals = TRUE, 
+  pch = 1,
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+abline(h = 0, col = "red")
+```
+
+```{r}
+plot(
+  mod_hwy, 
+  select = 5, 
+  residuals = TRUE, 
+  pch = 1,
+  shade = TRUE, 
+  rug = FALSE, 
+  cex = 0.5
+)
+abline(h = 0, col = "red")
+```
+
+## 2.2 Significance and linearity (I)
+
+It's time for you to summarize a model and interpret the output.
+
+After summarizing the model, you will answer the following question:
+
+Which smooth term in this model is significant and linear?
+
+```{r}
+# 1/2
+
+# Fit the model
+mod_city4 <- gam(
+  city.mpg ~ s(weight) + s(length) + s(price) + s(rpm) + s(width), 
+  data = mpg, 
+  method = "REML"
+)
+
+# View the summary
+summary(mod_city4)
+```
+
+```
+# 2/2
+```
+
+- weight
+
+- length
+
+- price - Yes
+
+- rpm
+
+- width
+
+*`price` is significant (p <0.05) and linear (`edf` near 1).*
+
+## 2.3 Significance and linearity (II)
+
+Looking at the same model (`mod_city4`), which smooth term is non-significant and non-linear?
+
+`mod_city4` is available in your workspace.
+
+```{r}
+summary(mod_city4)
+```
+
+- weight
+
+- length - Yes
+
+- price
+
+- rpm
+
+- width
+
+
+## 2.6 Plotting multiple auto performance variables
+
+In plotting GAMs, you sometimes want to look at just parts of a model, or all the terms in model. Here you'll practice selecting which terms to visualize.
+
+```{r}
+# Fit the model
+mod <- gam(hw.mpg ~ s(weight) + s(rpm) + s(price) + comp.ratio, data = mpg, method = "REML")
+summary(mod)
+```
+
+```{r}
+# Plot the price effect
+plot(mod, select = c(3))
+```
+
+```{r}
+# Plot all effects
+plot(mod, pages = 1, all.terms = TRUE)
+```
+
+## 2.7 Visualizing auto performance uncertainty
+
+Confidence intervals are a very important visual indicator of model fit. Here you'll practice changing the appearance of confidence intervals and transforming the scale of partial effects plots.
+
+```{r}
+# Fit the model
+mod <- gam(hw.mpg ~ s(weight) + s(rpm) + s(price) + comp.ratio, data = mpg, method = "REML")
+```
+
+```{r}
+# Plot the weight effect with colored shading
+plot(mod, select = 1, shade = TRUE, shade.col = "hotpink")
+```
+
+```{r}
+# Make another plot adding the intercept value and uncertainty
+plot(mod, select = 1, shift = coef(mod)[1], seWithMean = TRUE)
+```
+
+## 2.12 Examining overall concurvity in auto data
+
+Let's take a look at concurvity in the fuel efficiency model variables.
+
+After checking the overall concurvity of `mod`, answer the following question:
+
+Which smooth is least pre-determined by all the other variables?
+
+```{r}
+# 1/2
+
+# Fit the model
+mod <- gam(hw.mpg ~ s(length) + s(width) + s(height) + s(weight), data = mpg, method = "REML")
+
+# Check overall concurvity
+concurvity(mod, full = TRUE)
+```
+
+```
+# 2/2
+```
+
+- `s(length)`
+
+- `s(width)`
+
+- `s(height)` - Yes
+
+- `s(weight)`
+
+*`height` has relatively low concurvity. It isn't too similar to any of the other variables.*
+
+## 2.13 Examining concurvity between auto variables
+
+Now, let's look at concurvity between model variables.
+
+After examining the pairwise concurvity between variables in `mod`, answer the following question:
+
+Which two variables have the greatest worst-case concurvity?
+
+```{r}
+# 1/2
+
+# Fit the model
+mod <- gam(hw.mpg ~ s(length) + s(width) + s(height) + s(weight), data = mpg, method = "REML")
+
+# Check pairwise concurvity
+concurvity(mod, full = FALSE)
+```
+
+```
+# 2/2
+```
+
+- `height` and `length`
+
+- `height` and `weight`
+
+- `length` and `width`
+
+- `weight` and `width` - Yes
+
+*`weight` and `width` have worst-case concurvity of about 0.895.*
+
+
+In this chapter, you will extend the types of models you can fit to those with interactions of multiple variables. You will fit models of geospatial data by using these interactions to model complex surfaces, and visualize those surfaces in 3D. Then you will learn about interactions between smooth and categorical variables, and how to model interactions between very different variables like space and time.
+
+
+## 3.8 Visualizing categorical-continuous interactions
+
+### Categorical-continuous interactions
+
+```{r}
+model4b <- gam(
+  hw.mpg ~ s(weight, by = fuel) + fuel, 
+  data = mpg, 
+  method = "REML"
+)
+summary(model4b) 
+```
+
+```{r}
+plot(model4b, all.terms = TRUE, pages = 1, shade = TRUE, rug = FALSE)
+```
+
+### Factor-smooths
+
+```{r}
+model4c <- gam(
+  hw.mpg ~ s(weight, fuel, bs = "fs"),
+  data = mpg, 
+  method = "REML"
+)
+ 
+summary(model4c)
+```
+
+### Plotting factor-smooths
+
+```{r}
+plot(model4c)
+```
+
+```
+vis.gam(
+  model4c, 
+  theta = 125, 
+  plot.type = "persp"
+)
+# Gives:
+#   Error in persp.default(m1, m2, z, col = col, zlim = c(min.z, max.z), xlab = view[1], : 
+#   increasing 'x' and 'y' values expected
+```
+
+## Communicate
