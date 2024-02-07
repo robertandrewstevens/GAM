@@ -4,7 +4,7 @@
 
 1. `GAM_mcycle.ipynb` - Linear with continuous input variable and continuous response variable
 
-2. `GAM_loan.ipynb` - Logistic with mixture of continuous and categorical input variables and binary response variable - WIP
+2. `GAM_loan.ipynb` - Logistic with mixture of continuous and categorical input variables and binary response variable
 
 ## PyGAM References
 
